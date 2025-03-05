@@ -1,1 +1,1 @@
-# -ai-ml-ar-vr-registry
+# ai-ml-ar-vr-registry
