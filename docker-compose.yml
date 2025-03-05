@@ -1,0 +1,61 @@
+version: "3.8"
+
+services:
+  fastapi:
+    build: .
+    container_name: fastapi_backend
+    ports:
+      - "8000:8000"
+    depends_on:
+      - minio
+      - mlflow
+      - postgres
+    environment:
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - MINIO_ENDPOINT=http://minio:9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+
+  minio:
+    image: minio/minio
+    container_name: minio_storage
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.3.0
+    container_name: mlflow_tracking
+    ports:
+      - "5000:5000"
+    depends_on:
+      - postgres
+    environment:
+      - BACKEND_STORE_URI=postgresql://mlflow_user:mlflow_pass@postgres:5432/mlflow_db
+      - ARTIFACT_ROOT=s3://mlflow/
+      - AWS_ACCESS_KEY_ID=minioadmin
+      - AWS_SECRET_ACCESS_KEY=minioadmin
+    command: mlflow server --backend-store-uri postgresql://mlflow_user:mlflow_pass@postgres:5432/mlflow_db --default-artifact-root s3://mlflow/ --host 0.0.0.0
+
+  postgres:
+    image: postgres:13
+    container_name: postgres_db
+    environment:
+      POSTGRES_USER: mlflow_user
+      POSTGRES_PASSWORD: mlflow_pass
+      POSTGRES_DB: mlflow_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+
+volumes:
+  minio_data:
+  pg_data:
+
